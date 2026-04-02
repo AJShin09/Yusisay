@@ -1,4 +1,4 @@
 {
-    "buildCommand": "npm run build && composer install --prefer-dist --no-dev",
+    "buildCommand": "npm run build",
     "outputDirectory": "public"
 }
