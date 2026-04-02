@@ -1,19 +1,4 @@
 {
-    "buildCommand": "composer install --prefer-dist --no-dev && npm install && npm run build",
-    "outputDirectory": "public",
-    "functions": {
-        "api/index.php": {
-            "runtime": "now-php@1.0.0"
-        }
-    },
-    "routes": [
-        {
-            "src": "/build/(.*)",
-            "dest": "/public/build/$1"
-        },
-        {
-            "src": "/(.*)",
-            "dest": "/api/index.php"
-        }
-    ]
+    "buildCommand": "composer install && npm install && npm run build",
+    "outputDirectory": "public"
 }
