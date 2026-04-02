@@ -6,15 +6,11 @@ export default defineConfig({
         laravel({
             input: ['resources/css/app.css', 'resources/js/app.js'],
             refresh: true,
-            publicDirectory: 'dist',
         }),
     ],
     build: {
-        outDir: 'dist',
+        outDir: 'public/build',
         emptyOutDir: true,
         manifest: true,
     },
-    server: {
-        middlewareMode: true,
-    }
 });
