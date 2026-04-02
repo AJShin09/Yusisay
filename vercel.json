@@ -1,4 +1,5 @@
 {
-    "buildCommand": "composer install && npm install && npm run build",
-    "outputDirectory": "public"
+    "buildCommand": "npm install && npm run build && composer install --prefer-dist --no-dev",
+    "outputDirectory": "public",
+    "installCommand": "composer install && npm install"
 }
