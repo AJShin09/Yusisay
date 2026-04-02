@@ -1,6 +1,7 @@
 {
-    "buildCommand": "npm run build",
+    "buildCommand": "composer install --prefer-dist --no-dev && npm install && npm run build",
     "outputDirectory": "public",
+    "framework": "laravel",
     "functions": {
         "api/index.php": {
             "runtime": "php-8.2"
