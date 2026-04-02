@@ -1,0 +1,194 @@
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Models\User;
+use App\Models\Report;
+use App\Models\Post;
+use App\Models\CensoredWord;
+use Illuminate\Http\Request;
+use Carbon\Carbon;
+
+class AdminController extends Controller
+{
+    public function dashboard()
+    {
+        $dashboardData = $this->getDashboardData();
+        return view('admin.dashboard', compact('dashboardData'));
+    }
+
+    public function user()
+    {
+        return view('admin.user');
+    }
+
+    public function report()
+    {
+        return view('admin.report');
+    }
+
+    public function censoredWords()
+    {
+        return view('admin.censored-words');
+    }
+
+    public function getGrowthData(Request $request)
+    {
+        $period = $request->input('period', 'week');
+        $now = Carbon::now();
+        
+        switch ($period) {
+            case 'month':
+                $startDate = $now->copy()->subDays(30);
+                $data = $this->getMonthlyGrowthData($startDate, $now);
+                break;
+            case 'year':
+                $startDate = $now->copy()->subMonths(12);
+                $data = $this->getYearlyGrowthData($startDate, $now);
+                break;
+            default: // week
+                $startDate = $now->copy()->subDays(7);
+                $data = $this->getWeeklyGrowthData($startDate, $now);
+                break;
+        }
+        
+        return response()->json($data);
+    }
+
+    private function getDashboardData()
+    {
+        $now = Carbon::now();
+        $weekAgo = $now->copy()->subDays(7);
+        $twoWeeksAgo = $now->copy()->subDays(14);
+ 
+        $totalUsers = User::count();
+        $totalUsersLastWeek = User::where('created_at', '<', $weekAgo)->count();
+        $totalUsersChange = $totalUsersLastWeek > 0 
+            ? round((($totalUsers - $totalUsersLastWeek) / $totalUsersLastWeek) * 100, 1) 
+            : ($totalUsers > 0 ? 100 : 0);
+ 
+        $newUsersThisWeek = User::where('created_at', '>=', $weekAgo)->count();
+        $newUsersPreviousWeek = User::whereBetween('created_at', [$twoWeeksAgo, $weekAgo])->count();
+        $newUsersChange = $newUsersPreviousWeek > 0 
+            ? round((($newUsersThisWeek - $newUsersPreviousWeek) / $newUsersPreviousWeek) * 100, 1) 
+            : ($newUsersThisWeek > 0 ? 100 : 0);
+ 
+        $activeReports = Report::where('status', 'pending')->count();
+        $activeReportsLastWeek = Report::where('status', 'pending')
+            ->where('created_at', '<', $weekAgo)
+            ->count();
+        $activeReportsChange = $activeReportsLastWeek > 0 
+            ? round((($activeReports - $activeReportsLastWeek) / $activeReportsLastWeek) * 100, 1) 
+            : ($activeReports > 0 ? 100 : 0);
+ 
+        $resolvedReports = Report::where('status', '!=', 'pending')->count();
+        $resolvedReportsLastWeek = Report::where('status', '!=', 'pending')
+            ->where('updated_at', '<', $weekAgo)
+            ->count();
+        $resolvedReportsChange = $resolvedReportsLastWeek > 0 
+            ? round((($resolvedReports - $resolvedReportsLastWeek) / $resolvedReportsLastWeek) * 100, 1) 
+            : ($resolvedReports > 0 ? 100 : 0);
+ 
+        $growthData = $this->getWeeklyGrowthData($weekAgo, $now);
+ 
+        $recentCensoredWords = CensoredWord::orderBy('created_at', 'desc')
+            ->limit(5)
+            ->get()
+            ->map(function ($word) {
+                return [
+                    'description' => 'New censored word added: <strong>' . e($word->word) . '</strong>',
+                    'time' => $word->created_at->diffForHumans(),
+                ];
+            });
+
+        return [
+            'totalUsers' => $totalUsers,
+            'totalUsersChange' => $totalUsersChange,
+            'newUsersThisWeek' => $newUsersThisWeek,
+            'newUsersChange' => $newUsersChange,
+            'activeReports' => $activeReports,
+            'activeReportsChange' => $activeReportsChange,
+            'resolvedReports' => $resolvedReports,
+            'resolvedReportsChange' => $resolvedReportsChange,
+            'growthData' => $growthData,
+            'recentActivities' => $recentCensoredWords,
+        ];
+    }
+
+    private function getWeeklyGrowthData($startDate, $endDate)
+    {
+        $labels = [];
+        $users = [];
+        $posts = [];
+ 
+        for ($i = 6; $i >= 0; $i--) {
+            $date = $endDate->copy()->subDays($i);
+            $labels[] = $date->format('M d');
+ 
+            $userCount = User::whereDate('created_at', $date->toDateString())->count();
+            $users[] = $userCount;
+ 
+            $postCount = Post::whereDate('created_at', $date->toDateString())->count();
+            $posts[] = $postCount;
+        }
+
+        return [
+            'labels' => $labels,
+            'users' => $users,
+            'posts' => $posts,
+        ];
+    }
+
+    private function getMonthlyGrowthData($startDate, $endDate)
+    {
+        $labels = [];
+        $users = [];
+        $posts = [];
+ 
+        for ($i = 30; $i >= 0; $i -= 3) {
+            $date = $endDate->copy()->subDays($i);
+            $labels[] = $date->format('M d');
+ 
+            $userCount = User::whereDate('created_at', $date->toDateString())->count();
+            $users[] = $userCount;
+ 
+            $postCount = Post::whereDate('created_at', $date->toDateString())->count();
+            $posts[] = $postCount;
+        }
+
+        return [
+            'labels' => $labels,
+            'users' => $users,
+            'posts' => $posts,
+        ];
+    }
+
+    private function getYearlyGrowthData($startDate, $endDate)
+    {
+        $labels = [];
+        $users = [];
+        $posts = [];
+ 
+        for ($i = 11; $i >= 0; $i--) {
+            $date = $endDate->copy()->subMonths($i);
+            $labels[] = $date->format('M Y');
+ 
+            $userCount = User::whereYear('created_at', $date->year)
+                ->whereMonth('created_at', $date->month)
+                ->count();
+            $users[] = $userCount;
+ 
+            $postCount = Post::whereYear('created_at', $date->year)
+                ->whereMonth('created_at', $date->month)
+                ->count();
+            $posts[] = $postCount;
+        }
+
+        return [
+            'labels' => $labels,
+            'users' => $users,
+            'posts' => $posts,
+        ];
+    }
+}
